@@ -1,20 +1,20 @@
 import numpy as np
 
-class DifferenceScheeme:
+class Scheeme:
 
     def __init__(self, function: str):
         
-        self.value
-        self.A
-        self.function
+        self.value = 0
+        self.A = 0
+        self.function = function
 
 
-    def update(S0, r, theta, K, T):
+    def update(self, S0, r, theta, K, T):
         # TODO
         pass
 
 
-    def run(ite : int):
+    def run(self, ite : int):
 
         for i in range(ite):
             # TODO 
