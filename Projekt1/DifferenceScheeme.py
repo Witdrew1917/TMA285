@@ -1,9 +1,11 @@
+from mpl_toolkits import mplot3d
+import matplotlib.pyplot as plt
 import numpy as np
 import math
 
 class Scheeme:
 
-    def __init__(self, function: str, time_length : int, space_width : int):
+    def __init__(self, function: str, time_length : int, space_width : int, dt:float):
 
         assert time_length == space_width, \
             f"Expected equal sizes of the space partition and the time partition, got \
@@ -16,7 +18,9 @@ class Scheeme:
         self._A_minus = np.zeros(shape=(self._zdim, self._zdim))
         self._a = np.zeros(shape=(1,self._zdim))[0]
         self._u = np.zeros(shape=(self._zdim, 1))
-        self._d = 0 
+        # self._U_list.append(self._u.copy())
+        self._d = []
+        self._dt = dt
 
     def populate_sys(self):
         
@@ -33,19 +37,48 @@ class Scheeme:
         self._A_minus = -temp.copy()
         self._A_plus += np.diag(np.ones(self._zdim),0) 
         self._A_minus += np.diag(np.ones(self._zdim),0) 
+        self._S = []
 
         return 0
     
-    def create_boundry(self):
+    def price_calulation(self, S0:float, r:float,t:float):
         
+        sigma = self._dt
+        W = np.random.rand(len(t))
+        W = 1/(np.sqrt(2*np.pi*(sigma**2)))*np.exp(-1/2*(W/sigma)**2)
+        
+        self._S = S0*np.exp((r - sigma**2/2)*t + sigma*W)
 
-        
         return 0
 
+    def partition_z(self, S0:float, r:float, K:float, T:float):
+        
+        # partition t uniformly
+        t = np.linspace(0, T, self._tdim)
+        self.price_calulation(S0, r, t)
+        Q = []
+        
+        print(len(t))
+        print(len(self._S))
 
-    def calculate(self, S:float, r:float, sigma:float, K:float, T:float):
+        for i in range(len(t)):
+            Q[i] = sum(self._dt*self._S[:(i+1)])
+        
+        Z = []
+        Z = 1/(r*T)*(1 - np.exp(-r*(T - t))) + np.matmul(np.exp(-r*(T - t))/self._S,(Q/T - K)) 
+        Z.sort()
+        dz = []
+        for i in range(len(Z) - 1):
+            dz[i] = Z[i + 1] - Z[i]
+
+        return dz
+
+    def solve_PDE(self, S0:float, r:float, sigma:float, K:float, T:float):
         
         time = 0
+        self._u = np.random.rand(self._zdim).T
+        self._U_list.append(self._u.copy())
+        dz = self.partition_z(S0, r, K, T)
         for t in range(self._tdim):
             
             if t == 0:
@@ -55,11 +88,15 @@ class Scheeme:
             # provide calculation for aquiring Z
             # Z = ...
             Z = np.random.rand(self._zdim) # temporary assignment
+            
+            # should be vector, see equation in chat
             self._d = T * self._zdim**2/ (Z**2 * self._tdim)
+
             gamma = (1 - math.exp(-r*time))/(r*T)*np.ones(self._zdim)
             self._a = (sigma**2 / 2) * (gamma - Z)
             self.populate_sys()
-            # self._u[1:,t+1] = self._A*self._u[1:,t]   
+            self._u = np.matmul(np.linalg.inv(self._A_plus),np.matmul(self._A_minus,self._u))
+            self._U_list.append(self._u.copy())   
             time += (T / self._tdim)
         
         # print(Z)
@@ -67,8 +104,27 @@ class Scheeme:
         # print(gamma - Z)
         # print(self._d)
         # print(self._a)
-        # print(self._A_plus)
-        # print(self._A_minus)
+        print(self._A_plus)
+        print(self._A_minus)
 
+    def plot(self, T:float, Zmax:float):
 
+        fig = plt.figure()
+        ax = plt.axes(projection = '3d')
+        x = np.linspace(0,T, self._tdim)
+        y = np.linspace(0,Zmax, self._zdim)
+        X, Y = np.meshgrid(x,y)
+        i = 0
+        Z = np.zeros(shape=(self._tdim, self._zdim))
+        for u in self._U_list:
+            Z[i][:] = u
+            i += 1
+
+        print(Z)
+        print(X)
+        print(Y)
+        ax.plot_surface(X, Y, Z, rstride = 1, cstride = 1, cmap='viridis', edgecolor = 'none')
+        fig.show()
+        input("Press Enter to continue...")
+        return 0
 
