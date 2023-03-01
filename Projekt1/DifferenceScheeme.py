@@ -72,7 +72,7 @@ class Scheeme:
     def solve_PDE(self, S0:float, r:float, sigma:float, K:float, T:float):
         
         time = 0
-        self._u = np.random.rand(self._zdim).T
+        self._u = np.random.rand(self._zdim).T # u_0=(max(0,z_0), ... max(0,z_n))
         self._U_list.append(self._u.copy())
         dz = self.partition_z(S0, r, K, T)
         for t in range(self._tdim):
@@ -81,7 +81,7 @@ class Scheeme:
                 continue
 
             # TODO 
-            # provide calculation for aquiring Z
+            # provide calculation for aquiring Z -> you've done that 
             # Z = ...
             Z = np.random.rand(self._zdim) # temporary assignment
             
@@ -90,7 +90,7 @@ class Scheeme:
             gamma = (1 - math.exp(-r*time))/(r*T)*np.ones(self._zdim)
             self._a = (sigma**2 / 2) * (gamma - Z)
             self.populate_sys()
-            self._u = np.matmul(np.linalg.inv(self._A_plus),np.matmul(self._A_minus,self._u))
+            self._u = np.matmul(np.linalg.inv(self._A_plus),np.matmul(self._A_minus,self._u)) #don't forget adding the v_i vectors at some point before solving the system
             self._U_list.append(self._u.copy())   
             time += self._dt
 
@@ -102,8 +102,7 @@ class Scheeme:
             U[i][:] = u
             i += 1
 
-        # what is X in equation 6.43?
-        # X = ...
+        # what is X in equation 6.43? -> X = S(t_i)
         return self._S*U
        
     def plot(self, T:float, Zmax:float):
