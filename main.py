@@ -10,7 +10,7 @@ if __name__ == '__main__':
     dt = T/time_samples
 
     scheeme = DifferenceScheeme.Scheeme(f,time_samples,5,dt)
-    scheeme.solve_PDE(1,1,1,1,1)
+    scheeme.solve_PDE(1,1,1,1,1)    
     scheeme.plot(1,1)
         
     # scheeme.run(iterations)

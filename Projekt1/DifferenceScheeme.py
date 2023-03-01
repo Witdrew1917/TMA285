@@ -93,6 +93,18 @@ class Scheeme:
             self._u = np.matmul(np.linalg.inv(self._A_plus),np.matmul(self._A_minus,self._u))
             self._U_list.append(self._u.copy())   
             time += self._dt
+
+    def calc_call(self):
+        
+        i = 0
+        U = np.zeros(shape=(self._tdim, self._zdim))
+        for u in self._U_list:
+            U[i][:] = u
+            i += 1
+
+        # what is X in equation 6.43?
+        # X = ...
+        return self._S*U
        
     def plot(self, T:float, Zmax:float):
 
