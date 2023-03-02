@@ -11,6 +11,7 @@ if __name__ == '__main__':
 
     scheeme = DifferenceScheeme.Scheeme(f,time_samples,5,dt)
     scheeme.solve_PDE(1,1,1,1,1)    
-    scheeme.plot(1,1)
+    # scheeme.plot(1,1)
+    # print(scheeme.calc_call())
         
     # scheeme.run(iterations)

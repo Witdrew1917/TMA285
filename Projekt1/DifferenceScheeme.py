@@ -14,13 +14,15 @@ class Scheeme:
         self._zdim = space_width
         self._tdim = time_length
         self._U_list = []
-        self._A_plus = np.zeros(shape=(self._zdim, self._zdim))
-        self._A_minus = np.zeros(shape=(self._zdim, self._zdim))
-        self._a = np.zeros(shape=(1,self._zdim))[0]
-        self._u = np.zeros(shape=(self._zdim, 1))
-        # self._U_list.append(self._u.copy())
-        self._d = np.zeros(self._zdim)
+        self._A_plus = np.zeros(shape=(self._zdim - 1, self._zdim - 1))
+        self._A_minus = np.zeros(shape=(self._zdim - 1, self._zdim - 1))
+        self._a = np.zeros(shape=(1,self._zdim - 1))[0]
+        self._u = np.zeros(shape=(self._zdim - 1, 1))
+        self._d = np.zeros(self._zdim - 1)
         self._dt = dt
+        self._sort_order = []
+        self._S = []
+
 
     def populate_sys(self):
         
@@ -28,33 +30,39 @@ class Scheeme:
         # increase definition of A to encompase A(-1/2*d)^-1A(1/2*d)
         # there should also be a matrix for the coefficients a_ij
 
-        temp = np.zeros(shape=(self._zdim, self._zdim))
+        temp = np.zeros(shape=(self._zdim - 1, self._zdim - 1))
         temp += np.diag(-1*self._a, 0)
         temp += np.diag(self._a[1:], -1)
         temp += np.diag(-1*self._a[:(len(self._a)-1)], 1)
         temp *= (np.ones(shape=(len(self._d),len(self._d))) * self._d).T
         self._A_plus = temp.copy()
         self._A_minus = -temp.copy()
-        self._A_plus += np.diag(np.ones(self._zdim),0) 
-        self._A_minus += np.diag(np.ones(self._zdim),0) 
-        self._S = []
+        self._A_plus += np.diag(np.ones(self._zdim - 1),0) 
+        self._A_minus += np.diag(np.ones(self._zdim - 1),0) 
 
         return 0
     
-    def price_calulation(self, S0:float, r:float,t:float):
+    def calc_gamma(self, time:float, r:float, T:float) -> tuple[float, float]:
+
+        gamma = (1 - math.exp(-r*time))/(r*T)*np.ones(self._zdim)
+        gamma_next = (1 - math.exp(-r*(time + self._dt)))/(r*T)*np.ones(self._zdim)
+
+        return [gamma, gamma_next]
+    
+
+    def price_calulation(self, S0:float, r:float, t:float):
         
         sigma = self._dt
-        W = np.random.rand(len(t))
-        W = 1/(np.sqrt(2*np.pi*(sigma**2)))*np.exp(-1/2*(W/sigma)**2) # this might not be correct
-        
+        W = np.random.normal(0, sigma, len(t))
         self._S = S0*np.exp((r - sigma**2/2)*t + sigma*W)
 
         return 0
 
-    def partition_z(self, S0:float, r:float, K:float, T:float):
+
+    def partition_z(self, S0:float, r:float, K:float, T:float) -> np.ndarray:
         
         # partition t uniformly
-        t = np.linspace(0, T, self._tdim + 1)
+        t = np.linspace(0, T, self._tdim)
         self.price_calulation(S0, r, t)
         Q = np.zeros(len(t)).T
         for i in range(len(t)):
@@ -62,19 +70,22 @@ class Scheeme:
         
         Z = []
         Z = 1/(r*T)*(1 - np.exp(-r*(T - t))) + np.matmul(np.exp(-r*(T - t))/self._S,(Q/T - K)) 
+        self._sort_order = np.argsort(Z)
         Z.sort()
         dz = np.zeros(len(Z) - 1)
         for i in range(len(Z) - 1):
             dz[i] = Z[i + 1] - Z[i]
 
-        return dz
+        return [Z, dz]
+
 
     def solve_PDE(self, S0:float, r:float, sigma:float, K:float, T:float):
         
         time = 0
-        self._u = np.random.rand(self._zdim).T # u_0=(max(0,z_0), ... max(0,z_n))
+        self._u = np.random.rand(self._zdim - 1).T # u_0=(max(0,z_0), ... max(0,z_n))
         self._U_list.append(self._u.copy())
-        dz = self.partition_z(S0, r, K, T)
+        Z ,dz = self.partition_z(S0, r, K, T)
+
         for t in range(self._tdim):
             
             if t == 0:
@@ -83,28 +94,49 @@ class Scheeme:
             # TODO 
             # provide calculation for aquiring Z -> you've done that 
             # Z = ...
-            Z = np.random.rand(self._zdim) # temporary assignment
-            
             # should be vector, see equation in chat
             self._d = self._dt*np.ones(len(dz))/(dz**2)
-            gamma = (1 - math.exp(-r*time))/(r*T)*np.ones(self._zdim)
-            self._a = (sigma**2 / 2) * (gamma - Z)
+            gamma, gamma_next = self.calc_gamma(time, r, T)
+            
+            temp = ((sigma**2 / 2) * (gamma - Z))
+            self._a = temp[:(self._zdim - 1)]
+            a_n = ((sigma**2 / 2) * (gamma_next - Z))[self._zdim - 1]
+            
             self.populate_sys()
-            self._u = np.matmul(np.linalg.inv(self._A_plus),np.matmul(self._A_minus,self._u)) #don't forget adding the v_i vectors at some point before solving the system
+
+            correction = np.zeros(self._zdim - 1).T
+            correction[self._zdim - 2] = \
+                self._d[len(dz) - 1]*Z[self._zdim - 1]*(a_n* + temp[self._zdim - 1]) 
+            
+            self._u = np.matmul(np.linalg.inv(self._A_plus),np.matmul(self._A_minus,self._u) + correction) 
             self._U_list.append(self._u.copy())   
             time += self._dt
 
-    def calc_call(self):
+
+    def calc_call(self) -> np.ndarray:
         
         i = 0
         U = np.zeros(shape=(self._tdim, self._zdim))
         for u in self._U_list:
             U[i][:] = u
             i += 1
+        
+        temp = np.zeros(self._tdim)
+        for i in range(len(temp)):
+            temp[i] = U[i][i]
+
+        print(self._sort_order)
+        unsorted_u = np.zeros(self._tdim)
+        it = 0
+        for j in self._sort_order:
+            unsorted_u[it] = temp[j]
+            it += 1
+
 
         # what is X in equation 6.43? -> X = S(t_i)
-        return self._S*U
-       
+        return self._S*unsorted_u
+
+
     def plot(self, T:float, Zmax:float):
 
         fig = plt.figure()
