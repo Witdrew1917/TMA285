@@ -20,8 +20,10 @@ class Scheeme:
         self._u = np.zeros(shape=(self._zdim - 1, 1))
         self._d = np.zeros(self._zdim - 1)
         self._dt = dt
-        self._sort_order = []
+        self._sort_order_call = []
+        self._sort_order_put = []
         self._S = []
+        self._call_put = []
 
 
     def populate_sys(self):
@@ -42,6 +44,7 @@ class Scheeme:
 
         return 0
     
+    
     def calc_gamma(self, time:float, r:float, T:float) -> tuple[float, float]:
 
         gamma = (1 - math.exp(-r*time))/(r*T)*np.ones(self._zdim)
@@ -59,7 +62,7 @@ class Scheeme:
         return 0
 
 
-    def partition_z(self, S0:float, r:float, K:float, T:float) -> np.ndarray:
+    def partition_z(self, S0:float, r:float, K:float, T:float) -> tuple[np.ndarray, np.ndarray]:
         
         # partition t uniformly
         t = np.linspace(0, T, self._tdim)
@@ -68,93 +71,119 @@ class Scheeme:
         for i in range(len(t)):
             Q[i] = sum(self._dt*self._S[:(i+1)])
         
-        Z = []
-        Z = 1/(r*T)*(1 - np.exp(-r*(T - t))) + np.matmul(np.exp(-r*(T - t))/self._S,(Q/T - K)) 
-        self._sort_order = np.argsort(Z)
-        Z.sort()
-        dz = np.zeros(len(Z) - 1)
-        for i in range(len(Z) - 1):
-            dz[i] = Z[i + 1] - Z[i]
+        Z_call = []
+        Z_call = 1/(r*T)*(1 - np.exp(-r*(T - t))) + np.matmul(np.exp(-r*(T - t))/self._S,(Q/T - K)) 
+        self._sort_order_call = np.argsort(Z_call)
+        Z_call.sort()
+        dz_call = np.zeros(len(Z_call) - 1)
+        for i in range(len(Z_call) - 1):
+            dz_call[i] = Z_call[i + 1] - Z_call[i]
 
+        Z_put = []
+        Z_put = 1/(r*T)*(1 - np.exp(-r*(T - t))) + np.matmul(np.exp(-r*(T - t))/self._S,(K - Q/T)) 
+        self._sort_order_put = np.argsort(Z_put)
+        Z_put.sort()
+        dz_put = np.zeros(len(Z_put) - 1)
+        for i in range(len(Z_put) - 1):
+            dz_put[i] = Z_put[i + 1] - Z_put[i]
+
+        Z = []
+        Z.append(Z_call)
+        Z.append(Z_put)
+        
+        dz = []
+        dz.append(dz_call)
+        dz.append(dz_put)
+        
         return [Z, dz]
 
 
     def solve_PDE(self, S0:float, r:float, sigma:float, K:float, T:float):
         
         time = 0
-        self._u = np.random.rand(self._zdim - 1).T # u_0=(max(0,z_0), ... max(0,z_n))
-        self._U_list.append(self._u.copy())
-        Z ,dz = self.partition_z(S0, r, K, T)
+        Z_arr ,dz_arr = self.partition_z(S0, r, K, T)
 
-        for t in range(self._tdim):
+        for Z, dz in zip(Z_arr, dz_arr):
             
-            if t == 0:
-                continue
-
-            # TODO 
-            # provide calculation for aquiring Z -> you've done that 
-            # Z = ...
-            # should be vector, see equation in chat
-            self._d = self._dt*np.ones(len(dz))/(dz**2)
-            gamma, gamma_next = self.calc_gamma(time, r, T)
+            self._u = zero_max(Z[:(len(Z)-1)])
+            self._U_list.clear()
+            self._U_list.append(self._u.copy())
             
-            temp = ((sigma**2 / 2) * (gamma - Z))
-            self._a = temp[:(self._zdim - 1)]
-            a_n = ((sigma**2 / 2) * (gamma_next - Z))[self._zdim - 1]
+            for t in np.linspace(0,T,self._tdim):
+                
+                if t == 0:
+                    continue
+
+                # TODO 
+                # provide calculation for aquiring Z -> you've done that 
+                # Z = ...
+                # should be vector, see equation in chat
+                self._d = self._dt*np.ones(len(dz))/(dz**2)
+                gamma, gamma_next = self.calc_gamma(time, r, T)
+                
+                temp = ((sigma**2 / 2) * (gamma - Z))
+                self._a = temp[:(self._zdim - 1)]
+                a_n = ((sigma**2 / 2) * (gamma_next - Z))[self._zdim - 1]
+                
+                self.populate_sys()
+
+                correction = np.zeros(self._zdim - 1).T
+                correction[self._zdim - 2] = \
+                    self._d[len(dz) - 1]*Z[self._zdim - 1]*(a_n* + temp[self._zdim - 1]) 
+                
+                self._u = np.matmul(np.linalg.inv(self._A_plus),np.matmul(self._A_minus,self._u) + correction) 
+                self._U_list.append(self._u.copy())   
+                time += self._dt
             
-            self.populate_sys()
 
-            correction = np.zeros(self._zdim - 1).T
-            correction[self._zdim - 2] = \
-                self._d[len(dz) - 1]*Z[self._zdim - 1]*(a_n* + temp[self._zdim - 1]) 
-            
-            self._u = np.matmul(np.linalg.inv(self._A_plus),np.matmul(self._A_minus,self._u) + correction) 
-            self._U_list.append(self._u.copy())   
-            time += self._dt
+            self._call_put.append(self.calc_call_put())
 
 
-    def calc_call(self) -> np.ndarray:
+    def calc_call_put(self) -> np.ndarray:
         
         i = 0
-        U = np.zeros(shape=(self._tdim, self._zdim))
+        U = np.zeros(shape=(self._tdim, self._zdim - 1))
         for u in self._U_list:
             U[i][:] = u
             i += 1
         
         temp = np.zeros(self._tdim)
-        for i in range(len(temp)):
+        for i in range(len(temp) - 1):
             temp[i] = U[i][i]
 
-        print(self._sort_order)
         unsorted_u = np.zeros(self._tdim)
         it = 0
-        for j in self._sort_order:
+        for j in self._sort_order_call:
             unsorted_u[it] = temp[j]
             it += 1
-
-
-        # what is X in equation 6.43? -> X = S(t_i)
+        
         return self._S*unsorted_u
 
 
-    def plot(self, T:float, Zmax:float):
+    def plot(self, T:float, ):
 
-        fig = plt.figure()
-        ax = plt.axes(projection = '3d')
-        x = np.linspace(0,T, self._tdim)
-        y = np.linspace(0,Zmax, self._zdim)
-        X, Y = np.meshgrid(x,y)
-        i = 0
-        Z = np.zeros(shape=(self._tdim, self._zdim))
-        for u in self._U_list:
-            Z[i][:] = u
-            i += 1
-
-        print(Z)
-        print(X)
-        print(Y)
-        ax.plot_surface(X, Y, Z, rstride = 1, cstride = 1, cmap='viridis', edgecolor = 'none')
-        fig.show()
-        input("Press Enter to continue...")
+        print(self._call_put[0])
+        x = self._call_put[0]
+        t = np.linspace(0,T, self._tdim)
+        plt.plot(t,x)
+        plt.show()
         return 0
 
+def zero_max(arr:np.ndarray) -> np.ndarray:
+    """
+        Input: vector
+        Output: vector
+
+        Replaces values < 0 with 0 in input-vector
+    """
+    new_arr = np.zeros(len(arr))
+
+    for i in range(len(arr)):
+        
+        if arr[i] > 0:
+            new_arr[i] = arr[i]
+        
+        else:
+            new_arr[i] = 0
+
+    return new_arr
