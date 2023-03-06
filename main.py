@@ -13,4 +13,4 @@ if __name__ == '__main__':
     scheeme.solve_PDE(100,0.05,0.5,100,T)    
     scheeme.plot(T)
     
-    # scheeme.run(iterations)
+    # scheeme.run(iterations)Z[self._zdim - 1]

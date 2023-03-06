@@ -136,7 +136,7 @@ class Scheeme:
 
                 correction = np.zeros(self._zdim - 1).T
                 correction[self._zdim - 2] = \
-                    self._d[len(dz) - 1]*Z[self._zdim - 1]*(a_n* + temp[self._zdim - 1]) 
+                    (1/2)*self._d[len(dz) - 1]*Z[self._zdim - 1]*(a_n* + temp[self._zdim - 1]) 
                 
                 self._u = np.matmul(np.linalg.inv(self._A_plus),np.matmul(self._A_minus,self._u) + correction) 
                 self._U_list.append(self._u.copy())   
