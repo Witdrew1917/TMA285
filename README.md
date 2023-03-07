@@ -2,7 +2,7 @@
 Asian option difference scheeme
 
 This code has been developed as part of a course project
-which in turn is complemented by a written report (see ____.pdf).
+which in turn is complemented by a written report (see .pdf).
 One may find it beneficial to read the report in order to 
 better grasp the ambiguities of the code.
 
@@ -11,6 +11,7 @@ One needs python and matplot lib to run the code.
 
 Start up:
 Run
+
     python3 main.py 
 
 through terminal in order to run a single-iteration simulation
