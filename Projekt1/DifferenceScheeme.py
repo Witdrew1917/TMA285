@@ -92,8 +92,6 @@ class Scheeme:
         for i in range(len(Z_put) - 1):
             dz_put[i] = Z_put[i + 1] - Z_put[i]
 
-        print(Z_call)
-        print(Z_put)
         Z = []
         Z.append(Z_call)
         Z.append(Z_put)
@@ -187,8 +185,9 @@ class Scheeme:
         y = self._call_put[1]
         t = np.linspace(0,T, self._tdim)
         # plt.plot(t,(x - y) - self._parity)
-        plt.plot(t,x)
-        # plt.plot(t, y)
+        print((x - y) - self._parity)
+        # plt.plot(t,x)
+        plt.plot(t, y)
         plt.show()
         return 0
 
