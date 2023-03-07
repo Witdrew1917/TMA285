@@ -7,7 +7,7 @@ One may find it beneficial to read the report in order to
 better grasp the ambiguities of the code.
 
 Prerequisits:
-One needs python and matplot lib to run the code.
+One needs numpy and matplot lib to run the code.
 
 Start up:
 Run
