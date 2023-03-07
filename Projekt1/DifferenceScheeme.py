@@ -71,13 +71,11 @@ class Scheeme:
         t = np.linspace(0, T, self._tdim)
         self.price_calulation(S0, r, sigma, t)
         Q = np.zeros(len(t)).T
-        for i in range(len(t)):
-            Q[i] = sum(self._dt*self._S[:(i+1)])
-
+        Q = np.cumsum(self._dt*self._S)
         self._Q = Q
 
         Z_call = []
-        Z_call = 1/(r*T)*(1 - np.exp(-r*(T - t))) + (np.exp(-r*(T - t))/self._S *(Q/T - K)) 
+        Z_call = 1/(r*T)*(1 - np.exp(-r*(t))) + (np.exp(-r*(t))/self._S *(Q/T - K)) 
         self._sort_order_call = np.argsort(Z_call)
         Z_call.sort()
         dz_call = np.zeros(len(Z_call) - 1)
@@ -85,7 +83,7 @@ class Scheeme:
             dz_call[i] = Z_call[i + 1] - Z_call[i]
 
         Z_put = []
-        Z_put = 1/(r*T)*(1 - np.exp(-r*(T - t))) + (np.exp(-r*(T - t))/self._S * (K - Q/T)) 
+        Z_put = 1/(r*T)*(1 - np.exp(-r*(t))) + (np.exp(-r*(t))/self._S * (K - Q/T)) 
         self._sort_order_put = np.argsort(Z_put)
         Z_put.sort()
         dz_put = np.zeros(len(Z_put) - 1)
@@ -175,21 +173,25 @@ class Scheeme:
     def calc_parity(self, r:float, K: float, T:float, t):
 
         self._parity = (1/T)*self._Q*np.exp(-r*(T - t))  \
-            + self._S/(r*T)*(1 - np.exp(-r*(T - t)) - K*np.exp(-r*(T - t)))
+            + self._S/(r*T)*(1 - np.exp(-r*(T - t))) - K*np.exp(-r*(T - t))
         return 0
 
 
-    def plot(self, T:float, ):
+    def plot(self, T:float):
 
         x = self._call_put[0]
         y = self._call_put[1]
         t = np.linspace(0,T, self._tdim)
-        # plt.plot(t,(x - y) - self._parity)
-        print((x - y) - self._parity)
+        plt.plot(t,(x - y) - self._parity)
         # plt.plot(t,x)
-        plt.plot(t, y)
+        # plt.plot(t, y)
+        # plt.plot(t,(x - y))
+        # plt.plot(t,self._parity)
+        # plt.plot(t,self._S)
+        # plt.plot(t,self._Q)
         plt.show()
         return 0
+
 
 def zero_max(arr:np.ndarray) -> np.ndarray:
     """
