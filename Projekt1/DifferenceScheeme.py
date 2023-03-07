@@ -61,7 +61,6 @@ class Scheeme:
         q = np.ones(len(t))
         self._S = S0*np.exp((r - sigma**2/2)*self._dt*np.cumsum(q) \
                             + sigma*np.sqrt(self._dt)*np.cumsum(W))
-
         return 0
 
 
@@ -177,21 +176,33 @@ class Scheeme:
         return 0
 
 
-    def plot(self, T:float):
+    def plot(self, T:float, K:float):
 
         x = self._call_put[0]
         y = self._call_put[1]
         t = np.linspace(0,T, self._tdim)
-        plt.plot(t,(x - y) - self._parity)
-        # plt.plot(t,x)
-        # plt.plot(t, y)
-        # plt.plot(t,(x - y))
-        # plt.plot(t,self._parity)
-        # plt.plot(t,self._S)
-        # plt.plot(t,self._Q)
+        plt.figure(1)
+        plt.plot(t,(x - y))
+        plt.plot(t,self._parity)
+        plt.xlabel("time")
+        plt.ylabel("call/put parity")
+        plt.legend(['numerical values', 'theoretical'])   
+        plt.figure(2)
+        plt.plot(t,x)
+        plt.plot(t, y)
+        plt.xlabel("time")
+        plt.ylabel("call/put option")
+        plt.legend(['call', 'put'])
+        plt.figure(3)
+        plt.plot(t,self._S)
+        plt.plot(t,K*np.ones(len(t)))
+        plt.xlabel("time")
+        plt.ylabel("price")
+        plt.legend(['stock price', 'strike price'])
         plt.show()
         return 0
 
+    # def plot
 
 def zero_max(arr:np.ndarray) -> np.ndarray:
     """
@@ -211,3 +222,4 @@ def zero_max(arr:np.ndarray) -> np.ndarray:
             new_arr[i] = 0
 
     return new_arr
+
